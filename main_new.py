@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 from tkinter import *
-from tkinter import ttk
-from tkinter import filedialog
+from tkinter import ttk, filedialog
+from tkinter.messagebox import showerror
 import tkinter as tk
 import os
-
 SETTINGS_FILE = "rust_bind_settings.txt"
 
 YOUTUBERS_FILE = {
@@ -32,8 +31,9 @@ def replace_in_large_file(filename, search_str, replace_str):
     else:
         try:
             os.remove(temp_file)
-        except:
-            pass
+        except FileNotFoundError:
+            AppConfig.get_config_path()
+            print('37 line')
         return False
 
 
@@ -45,7 +45,6 @@ class ChoiceFile:
         if not settings_file or not os.path.exists(settings_file):
             return False
 
-        # Список команд для замены
         commands = [
             "grass.distance", "graphics.renderscale", "graphics.dlaa", "graphics.dlss",
             "render.instancing_render_distance", "graphics.shaderlod", "graphics.drawdistance",
@@ -56,15 +55,18 @@ class ChoiceFile:
             "decor.quality", "effects.antialiasing", "effects.motionblur", "effects.shafts",
             "effects.sharpen", "effects.hurtoverleyapplylighting", "effects.hurtoverlay", "gc.buffer"
         ]
+        try:
+            with open(settings_file, 'r', encoding='utf-8') as f:
+                youtuber_settings = [line.strip() for line in f if line.strip()]
 
-        with open(settings_file, 'r', encoding='utf-8') as f:
-            youtuber_settings = [line.strip() for line in f if line.strip()]
+            for i, command in enumerate(commands):
+                if i < len(youtuber_settings):
+                    replace_in_large_file(config_path, command, youtuber_settings[i])
 
-        for i, command in enumerate(commands):
-            if i < len(youtuber_settings):
-                replace_in_large_file(config_path, command, youtuber_settings[i])
-
-        return True
+            return True
+        except FileNotFoundError:
+            os.remove(SETTINGS_FILE)
+            AppConfig.get_config_path()
 
 
 class AppConfig:
@@ -92,6 +94,29 @@ class AppConfig:
         root.destroy()
         return file_path
 
+    @staticmethod
+    def graphics_file():
+        flag = 0
+        for dirpath, dirnames, filenames in os.walk('.'):
+            try:
+                for filename in filenames:
+                    if filename == 'client.cfg':
+                        flag = 1
+                        print(filename)
+                try:
+                    if flag == 0:
+                        showerror(title='Ошибка', message='Файл keys.cfg был перемещён. Выберите его снова')
+                        os.remove(SETTINGS_FILE)
+                        AppConfig.get_config_path()
+                except print('Файл найден'):
+                    pass
+            except:
+                print(os.path.join(dirpath, filename))
+        with open('rust_bind_settings.txt', 'r', encoding='utf-8') as file:
+            graphics_file = file.read()[:-8] + 'client.cfg'
+
+        return graphics_file
+
 
 class HelperWindow:
 
@@ -112,7 +137,7 @@ class HelperWindow:
                             "Rust Bind Fast - программа для быстрой настройки биндов в Rust\n\n"
                             "Функции:\n"
                             "1. Zoom - динамическое изменение FOV\n"
-                            "2. Heal -  быстрый крафт бинтов\n"
+                            "2. Auto crafting -  быстрый крафт бинтов\n"
                             "3. Auto sprints - автоматический спринт\n"
                             "4. Combat + pings + console - комбо-бинды для боя\n\n"
                             "Инструкция:\n"
@@ -136,7 +161,7 @@ class HelperWindow:
                           "- Автоматическое сохранение пути к конфигурации\n"
                           "- Безопасное изменение файлов\n"
                           "- Возможность смены конфигурационного файла\n\n"
-                          "Автор: я даун\n"
+                          "Автор: -\n"
                           "Дата релиза: 2025"
                           )
         about_text.config(state=DISABLED)
@@ -151,11 +176,11 @@ class HelperWindow:
 
 class GraphicsWindow:
 
-    def __init__(self, parent, config_path):
+    def __init__(self, parent):
         self.window = Toplevel(parent)
         self.window.title("Графика от ютуберов")
         self.window.geometry("300x200")
-        self.config_path = config_path
+        self.config_path = AppConfig.graphics_file()
 
         label = ttk.Label(self.window, text="Выберите ютубера:")
         label.pack(pady=10)
@@ -180,7 +205,7 @@ class GraphicsWindow:
 
     def apply_settings(self):
         youtuber = self.combobox.get()
-        if ChoiceFile.apply_youtuber_settings(self.config_path, youtuber):
+        if ChoiceFile.apply_youtuber_settings(AppConfig.graphics_file(), youtuber):
             self.result_label["text"] = f"Настройки {youtuber} успешно применены!"
         else:
             self.result_label["text"] = f"Ошибка: не удалось применить настройки {youtuber}"
@@ -200,7 +225,7 @@ class Screen:
         self.main_root.geometry(f"{str(self.size_x)}x{str(self.size_y)}")
         self.main_root.title(f"Rust bind fast - {os.path.basename(self.config_path)}")
 
-        binds = ["zoom", "heal", "auto sprints", "combat + pings + console"]
+        binds = ["zoom", "Auto crafting", "auto sprints", "combat + pings + console"]
         languages_var = StringVar(value=binds[0])
 
         main_frame = ttk.Frame(self.main_root)
@@ -237,7 +262,7 @@ class Screen:
         self.main_root.mainloop()
 
     def open_graphics_window(self):
-        GraphicsWindow(self.main_root, self.config_path)
+        GraphicsWindow(self.main_root)
 
     def change_config(self):
         if os.path.exists(SETTINGS_FILE):
@@ -258,7 +283,7 @@ class Screen:
             zoom_app = Zoom(zoom_root, self.main_root, self.config_path)
             zoom_app.zoom()
 
-        elif selection == "heal":
+        elif selection == "Auto crafting":
             heal_root = Toplevel(self.main_root)
             heal_root.geometry("300x250")
             heal_root.title("Настройки лечения")
@@ -288,7 +313,6 @@ class BaseSetting:
         self.label = ttk.Label(root, text="Введите клавишу и нажмите Применить:")
         self.entry = ttk.Entry(root)
 
-        # Кнопка возврата в главное меню
         self.back_btn = ttk.Button(
             root,
             text="Назад в меню",
@@ -303,7 +327,7 @@ class BaseSetting:
 class Zoom(BaseSetting):
     def __init__(self, root, main_root, config_path):
         super().__init__(root, main_root, config_path)
-        self.label.config(text="Введите клавишу для зума:")
+        self.label.config(text="Введите клавишу для приближения:")
 
     def zoom(self):
         self.entry.pack(anchor=NW, padx=6, pady=6)
@@ -320,6 +344,8 @@ class Zoom(BaseSetting):
             self.label["text"] = f"Зум назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
+            with open(config_path, 'r+', encoding='utf-8') as file:
+                file.write(f'{replace_str}\n')
 
 
 class Heal(BaseSetting):
@@ -339,9 +365,11 @@ class Heal(BaseSetting):
         search_str = f'bind {key}'
         replace_str = f'bind {key} Craft.add -2072273936'
         if replace_in_large_file(self.config_path, search_str, replace_str):
-            self.label["text"] = f"Лечение назначено на: {key}"
+            self.label["text"] = f"Крафт назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
+            with open(config_path, 'r+', encoding='utf-8') as file:
+                file.write(f'{replace_str}\n')
 
 
 class AutoSprints(BaseSetting):
@@ -364,6 +392,8 @@ class AutoSprints(BaseSetting):
             self.label["text"] = f"Автоспринт назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
+            with open(config_path, 'r+', encoding='utf-8') as file:
+                file.write(f'{replace_str}\n')
 
 
 class CombatPingsConsole(BaseSetting):
@@ -386,7 +416,8 @@ class CombatPingsConsole(BaseSetting):
             self.label["text"] = f"Боевые действия назначены на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-
+            with open(config_path, 'r+', encoding='utf-8') as file:
+                file.write(f'{replace_str}\n')
 
 if __name__ == "__main__":
     config_path = AppConfig.get_config_path()
