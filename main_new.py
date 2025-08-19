@@ -1,18 +1,58 @@
 # -*- coding: utf-8 -*-
+import json
 from tkinter import *
 from tkinter import ttk, filedialog
 from tkinter.messagebox import showerror
-from PIL import ImageTk, Image
 import tkinter as tk
 import os
-
+from tkinter import messagebox
 SETTINGS_FILE = "rust_bind_settings.txt"
 
 YOUTUBERS_FILE = {
-    "CheZee": "chezee_graphics.txt",
-    "Fleeca": "fleeca_graphics.txt",
-    "Shroud": "shroud_graphics.txt"
+    "CheZee": "chezee_graphics.txt"
 }
+
+def find_setting(data, target_key):
+    """
+    Рекурсивно ищет значение настройки по ключу во вложенных структурах JSON.
+
+    :param data: JSON-объект (словарь или список)
+    :param target_key: Искомый ключ настройки
+    :return: Значение настройки или None, если ключ не найден
+    """
+    if isinstance(data, dict):
+        if target_key in data:
+            return data[target_key]
+
+        for key, value in data.items():
+            result = find_setting(value, target_key)
+            if result is not None:
+                print(result, '32432432432423433', key, value)
+                return result
+
+    elif isinstance(data, list):
+        for item in data:
+            result = find_setting(item, target_key)
+            if result is not None:
+                return result
+    return None
+
+
+def load_json_keys(filename):
+    encodings = ['utf-8', 'cp1251', 'latin-1', 'iso-8859-1', 'windows-1252']
+
+    for encoding in encodings:
+        try:
+            with open(filename, 'r', encoding=encoding) as file:
+                data = json.load(file)
+            return list(data.keys())
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            print(f"Ошибка загрузки JSON: {e}")
+            return []
+    messagebox.showerror("Ошибка", "Не удалось определить кодировку файла")
+    return []
 
 
 def replace_in_large_file(filename, search_str, replace_str):
@@ -139,8 +179,8 @@ class HelperWindow:
         general_text.insert(END,
                             "Rust Bind Fast - программа для быстрой настройки биндов в Rust\n\n"
                             "Функции:\n"
-                            "one. Zoom - динамическое изменение FOV\n"
-                            "two. Auto crafting -  быстрый крафт бинтов\n"
+                            "1. Zoom - динамическое изменение FOV\n"
+                            "2. Auto crafting -  быстрый крафт бинтов\n"
                             "3. Auto sprints - автоматический спринт\n"
                             "4. Combat + pings + console - комбо-бинды для боя\n\n"
                             "Инструкция:\n"
@@ -183,6 +223,7 @@ class GraphicsWindow:
         self.window.geometry("300x200")
         self.window.resizable(True, True)
         self.config_path = AppConfig.graphics_file()
+        # print(self.window.geometry.get())
 
         label = ttk.Label(self.window, text="Выберите ютубера:")
         label.pack(pady=10)
@@ -266,6 +307,15 @@ class Screen:
         )
         helper_btn.pack(side=LEFT, padx=6, pady=0, anchor=SW)
 
+        sensitivity_btn = ttk.Button(
+            bottom_frame,
+            text="Настройки чуствительности",
+            command=self.choice_sensitivity
+        )
+
+        sensitivity_btn.pack(
+            side=LEFT, padx=6, pady=6
+        )
         # color_holo_btn = ttk.Button(
         #     top_frame,
             # text='Смена цвета прицела',
@@ -280,6 +330,9 @@ class Screen:
         # farm_btn.pack(side=RIGHT, padx=6, pady=0, anchor=N)
 
         self.main_root.mainloop()
+
+    def choice_sensitivity(self):
+        Sensitivity(self.root, self.main_root, config_path)
 
     def open_graphics_window(self):
         GraphicsWindow(self.main_root)
@@ -384,25 +437,35 @@ class Heal(BaseSetting):
     def __init__(self, root, main_root, config_path):
         super().__init__(root, main_root, config_path)
         self.label.config(text="Введите клавишу для лечения:")
+        self.keys = load_json_keys("autoCraftitemsRU.json")
+        self.combo = None
 
     def heal(self):
+        self.combo = ttk.Combobox(self.root, values=self.keys, state="readonly", width=40)
+        self.combo.pack(padx=10, pady=10)
+        self.combo.set(self.keys[1])
         self.entry.pack(anchor=NW, padx=6, pady=6)
         btn = ttk.Button(self.root, text="Применить", command=self.show_message)
         btn.pack(anchor=NW, padx=6, pady=6)
         self.label.pack(anchor=NW, padx=6, pady=6)
         self.back_btn.pack(anchor=NW, padx=6, pady=6)
+        self.combo.bind("<<ComboboxSelected>>", lambda e: self.show_message())
+        autoCraftItemsChoice = self.combo.get()
+        print(autoCraftItemsChoice)
 
     def show_message(self):
         key = self.entry.get()
+        with open('autoCraftitemsRu.json', 'r') as file:
+            json_ = json.load(file)
+            autoCraftItemsChoice = find_setting(json_, self.combo.get())
         search_str = f'bind {key}'
-        replace_str = f'bind {key} Craft.add -2072273936'
+        replace_str = f'bind {key} Craft.add {autoCraftItemsChoice}'
         if replace_in_large_file(self.config_path, search_str, replace_str):
             self.label["text"] = f"Крафт назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'r+', encoding='utf-8') as file:
                 file.write(f'{replace_str}\n')
-
 
 class AutoSprints(BaseSetting):
     def __init__(self, root, main_root, config_path):
@@ -470,7 +533,7 @@ class ColorHolo(BaseSetting):
         if (key == 'mouse0') or (key == 'mouse1'):
             replace_str = f'bind {key} +attack;+accessibility.holosightcolour 2;accessibility.holosightcolour 0'
         else:
-            replace_str = f'bind {key} key +accessibility.holosightcolour 2;accessibility.holosightcolour 0'
+            replace_str = f'bind {key}  +accessibility.holosightcolour 2;accessibility.holosightcolour 0'
 
         if replace_in_large_file(self.config_path, search_str, replace_str):
             self.label["text"] = f"Смена цвета голографического прицела назначена на {key}"
@@ -480,28 +543,19 @@ class ColorHolo(BaseSetting):
                 file.write(f'{replace_str}\n')
 
 
-class HealSyringe(BaseSetting):
+
+
+class Sensitivity(BaseSetting):
     def __init__(self, root, main_root, config_path):
         super().__init__(root, main_root, config_path)
-        self.label.config(text="Введите клавишу для авто кравта цприцов")
+        self.label.config(text="настройка чуствительности, а так же настройки чуствительности ютуберов")
 
-    def syringe(self):
+    def sensitivity(self):
         self.entry.pack(anchor=NW, padx=6, pady=6)
-        btn = ttk.Button(self.root, text="Приминить", command=self.show_message)
+        btn = ttk.Button(self.root, text="Приминить")
         btn.pack(anchor=NW, padx=6, pady=6)
         self.label.pack(anchor=NW, padx=6, pady=6)
         self.back_btn.pack(anchor=NW, padx=6, pady=6)
-
-    def show_message(self):
-        key = self.entry.get()
-        search_str = f'bind {key}'
-        replace_str = f'bind {key} craft.add 1079279582'
-        if replace_in_large_file(self.config_path, search_str, replace_str):
-            self.label["text"] = f"Авто крафт шприцов назначено: {key}"
-        else:
-            self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(config_path, 'r+', encoding='utf-8') as file:
-                file.write(f'{replace_str}\n')
 
 
 class Farmer:
@@ -650,5 +704,5 @@ X - пустой ген.
 
 if __name__ == "__main__":
     config_path = AppConfig.get_config_path()
-    app = Screen(400, 200, config_path)
+    app = Screen(550, 200, config_path)
     app.main_screen()
