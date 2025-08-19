@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 import json
+import tkinter.messagebox
 from tkinter import *
 from tkinter import ttk, filedialog
 from tkinter.messagebox import showerror
 import tkinter as tk
 import os
 from tkinter import messagebox
+from tkinter.messagebox import showerror, showwarning, showinfo
+
 SETTINGS_FILE = "rust_bind_settings.txt"
 
 YOUTUBERS_FILE = {
@@ -56,10 +59,13 @@ def load_json_keys(filename):
 
 
 def replace_in_large_file(filename, search_str, replace_str):
+    print(filename, "o;uegfpiWGFPOIwh")
     temp_file = filename + ".tmp"
     replaced = False
+    print(filename, "o;ue------------------------------gfpiWGFPOIwh")
 
-    with open(filename, 'r', encoding='utf-8') as fin, open(temp_file, 'w', encoding='utf-8') as fout:
+    with open(filename, 'r') as fin, open(temp_file, 'w') as fout:
+        print(filename, "o;uegfpasgageaiWGFPOIwh")
         for line in fin:
             if search_str in line:
                 fout.write(replace_str + '\n')
@@ -75,7 +81,6 @@ def replace_in_large_file(filename, search_str, replace_str):
             os.remove(temp_file)
         except FileNotFoundError:
             AppConfig.get_config_path()
-            print('37 line')
         return False
 
 
@@ -108,6 +113,7 @@ class ChoiceFile:
             return True
         except FileNotFoundError:
             os.remove(SETTINGS_FILE)
+            os.remove('rust_bind_settings_ke.txt')
             AppConfig.get_config_path()
 
 
@@ -132,6 +138,9 @@ class AppConfig:
 
         with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
             f.write(file_path)
+        with open('rust_bind_settings_ke.txt', 'a', encoding='utf-8') as f:
+            f.write(file_path[:-10] + "keys.cfg")
+
 
         root.destroy()
         return file_path
@@ -155,7 +164,8 @@ class AppConfig:
             except:
                 print(os.path.join(dirpath, filename))
         with open('rust_bind_settings.txt', 'r', encoding='utf-8') as file:
-            graphics_file = file.read()[:-8] + 'client.cfg'
+            graphics_file = file.read()[:-10] + 'client.cfg'
+
 
         return graphics_file
 
@@ -223,7 +233,6 @@ class GraphicsWindow:
         self.window.geometry("300x200")
         self.window.resizable(True, True)
         self.config_path = AppConfig.graphics_file()
-        # print(self.window.geometry.get())
 
         label = ttk.Label(self.window, text="Выберите ютубера:")
         label.pack(pady=10)
@@ -340,6 +349,7 @@ class Screen:
     def change_config(self):
         if os.path.exists(SETTINGS_FILE):
             os.remove(SETTINGS_FILE)
+            os.remove('rust_bind_settings_ke.txt')
         self.main_root.destroy()
         config_path = AppConfig.get_config_path()
         app = Screen(300, 250, config_path)
@@ -394,7 +404,14 @@ class BaseSetting:
     def __init__(self, root, main_root, config_path):
         self.root = root
         self.main_root = main_root
-        self.config_path = config_path
+        try:
+            with open("rust_bind_settings_ke.txt", 'r', encoding='utf-8') as file:
+                self.config_path = file.read()[:-8] + 'keys.cfg'
+                print(self.config_path)
+        except FileNotFoundError:
+            showerror(title="Критическая ошибка", message="не найден файл keys.cfg смените конфигурацию или востановите файлы через Steam")
+            exit()
+
         self.label = ttk.Label(root, text="Введите клавишу и нажмите Применить:")
         self.entry = ttk.Entry(root)
 
@@ -422,14 +439,17 @@ class Zoom(BaseSetting):
         self.back_btn.pack(anchor=NW, padx=6, pady=6)
 
     def show_message(self):
+        print(self.config_path)
+
         key = self.entry.get()
         search_str = f'bind {key}'
         replace_str = f'bind {key} +graphics.fov 90;graphics.fov 70'
         if replace_in_large_file(self.config_path, search_str, replace_str):
+            print(self.config_path)
             self.label["text"] = f"Зум назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'a', encoding='utf-8') as file:
                 file.write(f'{replace_str}\n')
 
 
@@ -464,8 +484,9 @@ class Heal(BaseSetting):
             self.label["text"] = f"Крафт назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(self.config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'a', encoding='utf-8') as file:
                 file.write(f'{replace_str}\n')
+
 
 class AutoSprints(BaseSetting):
     def __init__(self, root, main_root, config_path):
@@ -487,7 +508,7 @@ class AutoSprints(BaseSetting):
             self.label["text"] = f"Автоспринт назначен на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'a', encoding='utf-8') as file:
                 file.write(f'{replace_str}\n')
 
 
@@ -511,7 +532,7 @@ class CombatPingsConsole(BaseSetting):
             self.label["text"] = f"Боевые действия назначены на: {key}"
         else:
             self.label["text"] = f"Клавиша '{key}' не найдена! Добавлена новая привязка."
-            with open(config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'a', encoding='utf-8') as file:
                 file.write(f'{replace_str}\n')
 
 
@@ -539,10 +560,8 @@ class ColorHolo(BaseSetting):
             self.label["text"] = f"Смена цвета голографического прицела назначена на {key}"
         else:
             self.label["text"] = f'Клавиша {key} не найдена! Добавлена новая привязка.'
-            with open(config_path, 'r+', encoding='utf-8') as file:
+            with open(self.config_path, 'a') as file:
                 file.write(f'{replace_str}\n')
-
-
 
 
 class Sensitivity(BaseSetting):
