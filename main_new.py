@@ -1,19 +1,20 @@
 # -*- coding: utf-8 -*-
 import json
-import tkinter.messagebox
 from tkinter import *
 from tkinter import ttk, filedialog
-from tkinter.messagebox import showerror
 import tkinter as tk
 import os
 from tkinter import messagebox
-from tkinter.messagebox import showerror, showwarning, showinfo
+from tkinter.messagebox import showerror
 
+main_SAZE = 500
+main_HEIDTH = 300
 SETTINGS_FILE = "rust_bind_settings.txt"
 
 YOUTUBERS_FILE = {
     "CheZee": "chezee_graphics.txt"
 }
+
 
 def find_setting(data, target_key):
     """
@@ -59,13 +60,9 @@ def load_json_keys(filename):
 
 
 def replace_in_large_file(filename, search_str, replace_str):
-    print(filename, "o;uegfpiWGFPOIwh")
     temp_file = filename + ".tmp"
     replaced = False
-    print(filename, "o;ue------------------------------gfpiWGFPOIwh")
-
     with open(filename, 'r') as fin, open(temp_file, 'w') as fout:
-        print(filename, "o;uegfpasgageaiWGFPOIwh")
         for line in fin:
             if search_str in line:
                 fout.write(replace_str + '\n')
@@ -141,7 +138,6 @@ class AppConfig:
         with open('rust_bind_settings_ke.txt', 'a', encoding='utf-8') as f:
             f.write(file_path[:-10] + "keys.cfg")
 
-
         root.destroy()
         return file_path
 
@@ -151,21 +147,14 @@ class AppConfig:
         for dirpath, dirnames, filenames in os.walk('.'):
             try:
                 for filename in filenames:
+                    print(filename, '|', filenames)
                     if filename == 'client.cfg':
                         flag = 1
                         print(filename)
-                try:
-                    if flag == 0:
-                        showerror(title='Ошибка', message='Файл keys.cfg был перемещён. Выберите его снова')
-                        os.remove(SETTINGS_FILE)
-                        AppConfig.get_config_path()
-                except print('Файл найден'):
-                    pass
             except:
                 print(os.path.join(dirpath, filename))
         with open('rust_bind_settings.txt', 'r', encoding='utf-8') as file:
             graphics_file = file.read()[:-10] + 'client.cfg'
-
 
         return graphics_file
 
@@ -260,6 +249,7 @@ class GraphicsWindow:
         if ChoiceFile.apply_youtuber_settings(AppConfig.graphics_file(), youtuber):
             self.result_label["text"] = f"Настройки {youtuber} успешно применены!"
         else:
+            print(AppConfig.graphics_file(), youtuber)
             self.result_label["text"] = f"Ошибка: не удалось применить настройки {youtuber}"
 
 
@@ -284,7 +274,7 @@ class Screen:
         main_frame = ttk.Frame(self.main_root)
         main_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
 
-        label = ttk.Label(main_frame, text="После использования перезагрузите Rust.\nВыберите действие:")
+        label = ttk.Label(main_frame, text="Перед использования выключите игру Rust.\nВыберите действие:")
         label.pack(anchor=NW, padx=1, pady=1)
 
         self.combobox = ttk.Combobox(main_frame, textvariable=languages_var, values=binds)
@@ -319,9 +309,8 @@ class Screen:
         sensitivity_btn = ttk.Button(
             bottom_frame,
             text="Настройки чуствительности",
-            command=self.choice_sensitivity
+            command=lambda: Sensitivity(self.main_root)
         )
-
         sensitivity_btn.pack(
             side=LEFT, padx=6, pady=6
         )
@@ -331,17 +320,17 @@ class Screen:
             # command=lambda: ColorHolo(self.main_root)
         # )
 
-        # farm_btn = ttk.Button(
-            # top_frame,
-            # text="Ферммерство",
-            # command=lambda: Farmer(self.main_root)
-        # )
-        # farm_btn.pack(side=RIGHT, padx=6, pady=0, anchor=N)
+        farm_btn = ttk.Button(
+            top_frame,
+            text="Ферммерство",
+            command=lambda: Farmer(self.main_root)
+        )
+        farm_btn.pack(side=RIGHT, padx=6, pady=0, anchor=N)
 
         self.main_root.mainloop()
 
     def choice_sensitivity(self):
-        Sensitivity(self.root, self.main_root, config_path)
+        Sensitivity(self.main_root)
 
     def open_graphics_window(self):
         GraphicsWindow(self.main_root)
@@ -352,7 +341,7 @@ class Screen:
             os.remove('rust_bind_settings_ke.txt')
         self.main_root.destroy()
         config_path = AppConfig.get_config_path()
-        app = Screen(300, 250, config_path)
+        app = Screen(main_SAZE, main_HEIDTH, config_path)
         app.main_screen()
 
     def selected(self, event):
@@ -564,18 +553,70 @@ class ColorHolo(BaseSetting):
                 file.write(f'{replace_str}\n')
 
 
-class Sensitivity(BaseSetting):
-    def __init__(self, root, main_root, config_path):
-        super().__init__(root, main_root, config_path)
-        self.label.config(text="настройка чуствительности, а так же настройки чуствительности ютуберов")
+class Sensitivity:
+    def __init__(self, parent):
+        self.enabled_checkbutton = None
+        self.Parent = parent
+        self.window = Toplevel(parent)
+
+        self.window.title("настройка чувствительности, а так же настройки чувствительности ютуберов")
+        self.window.geometry("300x250")
+        self.window.resizable(True, True)
+
+        self.entry = ttk.Entry(self.window)
+        self.entry2 = ttk.Entry(self.window)
+
+        self.asynchronous_sensitivity = IntVar()
+        self.main_label = ttk.Label(self.window, text="Основная чувствительность:")
+        with open("rust_bind_settings_ke.txt", 'r', encoding='utf-8') as file:
+            self.config_path = file.read()[:-8] + 'keys.cfg'
+
+        self.sensitivity()
 
     def sensitivity(self):
-        self.entry.pack(anchor=NW, padx=6, pady=6)
-        btn = ttk.Button(self.root, text="Приминить")
-        btn.pack(anchor=NW, padx=6, pady=6)
-        self.label.pack(anchor=NW, padx=6, pady=6)
-        self.back_btn.pack(anchor=NW, padx=6, pady=6)
+        self.main_label.pack(anchor=NW, padx=6, pady=(10, 0))
+        self.entry.pack(anchor=NW, padx=6, pady=(0, 10), fill=X)
+        self.enabled_checkbutton = ttk.Checkbutton(
+            self.window,
+            text="Включить разную чувствительность при приседе",
+            variable=self.asynchronous_sensitivity,
+            command=self.checkbutton_changed
+        )
+        self.enabled_checkbutton.pack(anchor=NW, padx=6, pady=5)
+        btn = ttk.Button(self.window, text="Применить", command=self.show_message)
+        btn.pack(anchor=NW, padx=6, pady=10)
+        close_btn = ttk.Button(self.window, text="Закрыть", command=self.window.destroy)
+        close_btn.pack(side=BOTTOM, pady=10)
 
+    def checkbutton_changed(self):
+        if self.asynchronous_sensitivity.get() == 1:
+            crouch_label = ttk.Label(self.window, text="Чувствительность при приседе:")
+            crouch_label.pack(anchor=NW, padx=6, pady=(5, 0))
+            self.entry2.pack(anchor=NW, padx=6, pady=(0, 10), fill=X)
+        else:
+            for widget in self.window.winfo_children():
+                if isinstance(widget, ttk.Label) and widget.cget("text") == "Чувствительность при приседе:":
+                    widget.destroy()
+                    break
+            self.entry2.pack_forget()
+
+    def show_message(self):
+        key1 = self.entry.get()
+        key2 = self.entry2.get()
+        search_str = f'input.ads_sensitivity'
+        try:
+            if ((key2 != "") and (key1 != '')) and int:
+                print(key1, '|', key2)
+                print(type(key1), '|', type(key2))
+                replace_str = f"bind [leftcontrol + mouse0] +input.sensitivity {key1}; input.sensitivity {key2}"
+            if replace_in_large_file(self.config_path, search_str, replace_str):
+                print(replace_str)
+            else:
+                with open(self.config_path, 'a') as file:
+                    print(replace_str, '|', '--------------' * 2)
+                    file.write(f'{replace_str}\n')
+        except ValueError:
+            print('f')
 
 class Farmer:
     def __init__(self, parent):
@@ -611,8 +652,8 @@ class Farmer:
         general_text.insert(tk.END,
                         f'''Основы фермерства.
 На данный момент в игре можно выращивать:
-    one.картофель
-    two.конопля
+    1.картофель
+    2.конопля
     3.кукуруза
     4.тыква
 6 видов кустов с ягодами
@@ -723,5 +764,6 @@ X - пустой ген.
 
 if __name__ == "__main__":
     config_path = AppConfig.get_config_path()
-    app = Screen(550, 200, config_path)
+    app = Screen(main_SAZE, main_HEIDTH, config_path)
     app.main_screen()
+    exit()
