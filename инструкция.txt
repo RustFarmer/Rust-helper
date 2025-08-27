@@ -1,3 +1,3 @@
-надо выбрать путь к файлу раста под названием keys.cfg
+надо выбрать путь к файлу раста под названием сlient.cfg
 или | or
-you need to select the path to the rasta file called keys.cfg.
+you need to select the path to the rasta file called сlient.cfg.
