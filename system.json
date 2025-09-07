@@ -1,5 +1,6 @@
 {
     "client.cfg": "None",
     "keys.cfg": "None",
-    "settings_flag": "0"
+    "settings_flag": "0",
+    "user_id": ""
 }
