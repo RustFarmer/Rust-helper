@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 import json
+import time
 import tkinter as tk
 import os
 from tkinter import *
 from tkinter import ttk, filedialog
 from tkinter import messagebox
-from tkinter.messagebox import showerror, askyesno, showinfo
+from functools import lru_cache
+from tkinter.messagebox import showerror, askyesno
 from fork_json_file import load_json_keys, replace_in_large_file, Save, uses_save_file, modify_all_key_values, find_setting
 from buffer import buffer
+from webbrowser import open_new
 
 main_SAZE = 650
 main_HEIDTH = 300
@@ -19,16 +22,18 @@ YOUTUBERS_FILE = {
 SYSTEM_JSON = 'system.json'
 file_name = "templ_file.txt"
 RustONParameter = False
+version = 5.1
+avtorname = '星空の下で-----'
 
 
 def create_and_write_file(string_for_write):
-    with open(file_name, "a+", encoding='utf-8') as templ_filee:
-        with open(file_name, "r", encoding='utf-8') as templ_file:
-            g = templ_file.readlines()
-            print(g, 'kafjgo[ahs[og')
-            if templ_file.read() == '':
-                templ_filee.write(string_for_write)
-            else: templ_filee.write(f";{string_for_write}")
+    with open(file_name, "a+", encoding='utf-8') as templ_file_w:
+        with open(file_name, "r", encoding='utf-8') as templ_file_r:
+            g = templ_file_r.readlines()
+            if templ_file_r.read() == '':
+                templ_file_w.write(string_for_write)
+            else:
+                templ_file_w.write(f";{string_for_write}")
 
 
 class ChoiceFile:
@@ -61,15 +66,18 @@ class ChoiceFile:
         except FileNotFoundError:
             AppConfig.get_config_path()
 
+flag_change_config = 0
+
 
 class AppConfig:
 
     @staticmethod
     def get_config_path():
-        print(SYSTEM_JSON, SETTINGS_FLAG, '-'*20)
-        if SETTINGS_FLAG:
-            print(SETTINGS_FLAG, type(SETTINGS_FLAG))
+        global flag_change_config
+        file_name = "system.json"
+        if SETTINGS_FLAG and flag_change_config == 0:
             return SETTINGS_FILE
+
         root = tk.Tk()
         root.withdraw()
         file_path = filedialog.askopenfilename(
@@ -81,15 +89,16 @@ class AppConfig:
             print("Путь не выбран. Приложение будет закрыто.")
             exit()
 
-        with open('system.json', 'r', encoding='utf-8') as data:
-            Ddata = json.load(data)
+        with open(file_name, 'r', encoding='utf-8') as file_json:
+            data = json.load(file_json)
             new_key = str(file_path[:-10] + "keys.cfg")
-            old_key = find_setting(Ddata, "keys.cfg")
-            modify_all_key_values("system.json", "keys.cfg", new_key)
-            modify_all_key_values("system.json", "client.cfg", file_path)
-            modify_all_key_values("system.json", "settings_flag", "1")
+            old_key = find_setting(data, "keys.cfg")
+            modify_all_key_values(file_name, "keys.cfg", new_key)
+            modify_all_key_values(file_name, "client.cfg", file_path)
+            modify_all_key_values(file_name, "settings_flag", "1")
 
         root.destroy()
+        flag_change_config = 0
         return file_path
 
     @staticmethod
@@ -109,12 +118,13 @@ class AppConfig:
         return graphics_file
 
 
+@lru_cache()
 class HelperWindow:
 
     def __init__(self, parent):
         self.window = Toplevel(parent)
         self.window.title("Помощь")
-        self.window.geometry("400x300")
+        self.window.geometry("500x300")
         self.window.resizable(True, True)
         self.create_widgets()
 
@@ -146,14 +156,15 @@ class HelperWindow:
 
         about_text = Text(about_frame, wrap=WORD, padx=10, pady=10)
         about_text.insert(END,
-                          "Rust Bind Fast v5.0\n\n"
+                          f"Rust Bind Fast {version}\n\n"
                           "Разработано для упрощения настройки биндов в Rust\n\n"
                           "Особенности:\n"
                           "- Простой и интуитивно понятный интерфейс\n"
                           "- Автоматическое сохранение пути к конфигурации\n"
                           "- Безопасное изменение файлов\n"
                           "- Возможность смены конфигурационного файла\n\n"
-                          "Автор: -\n"
+                          f"Автор: {avtorname}\n"
+                          f"GitHub: https://github.com/RustFarmer/Rust-helper\n"
                           "Дата релиза: 2025"
                           )
         about_text.config(state=DISABLED)
@@ -203,6 +214,7 @@ class GraphicsWindow:
             self.result_label["text"] = f"Ошибка: не удалось применить настройки {youtuber}"
 
 
+@lru_cache()
 class Screen:
     def __init__(self, size_x, size_y, config_path):
         self.size_x = size_x
@@ -215,15 +227,17 @@ class Screen:
     def main_screen(self):
         self.main_root = Tk()
         self.main_root.geometry(f"{str(self.size_x)}x{str(self.size_y)}")
-        self.main_root.title(f"Rust bind fast - {os.path.basename(self.config_path)}")
+        with open(SYSTEM_JSON, 'r', encoding='utf-8') as file:
+            dataa =json.load(file)
+        self.main_root.title(f"Rust bind fast - {os.path.basename(self.config_path)},{str(find_setting(dataa, 'user_id'))}")
         self.main_root.resizable(True, True)
 
-        binds = ["zoom", "Auto crafting", "auto sprints", "combat + pings + console", "changing the color of the holographic sight"]
+        binds = ["zoom", "Auto crafting", "auto sprints", "combat + pings + console",
+                 "changing the color of the holographic sight"]
         languages_var = StringVar(value=binds[0])
 
         main_frame = ttk.Frame(self.main_root)
         main_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
-
         label = ttk.Label(main_frame, text="Перед использования выключите игру Rust.\nВыберите действие:")
         label.pack(anchor=NW, padx=1, pady=1)
 
@@ -244,11 +258,8 @@ class Screen:
             command=self.change_config
         )
 
-
         top_frame = ttk.Frame(main_frame)
         top_frame.pack(fill=X, pady=5)
-
-
 
         sensitivity_btn = ttk.Button(
             bottom_frame,
@@ -268,15 +279,21 @@ class Screen:
             text='загрузить сохраненные настройки',
             command=lambda: DownloadSavedSettings(self.main_root)
         )
-        RustONParameter_frame = ttk.Frame(main_frame)
-        RustONParameter_frame.pack(fill=X, pady=5)
+        rust_on_parameter_frame = ttk.Frame(main_frame)
+        rust_on_parameter_frame.pack(fill=X, pady=5)
 
-        RustONParameter_btn = ttk.Button(
-            RustONParameter_frame,
+        rust_on_parameter_btn = ttk.Button(
+            rust_on_parameter_frame,
             text="Закончить выбор биндов",
             command=lambda: FinishOnRustBinds(),
         )
-        if RustONParameter != True:
+
+        login_btn = ttk.Button(
+            bottom_frame,
+            text="авторизироваться",
+            command=lambda: login()
+        )
+        if not RustONParameter:
             helper_btn = ttk.Button(
                 top_frame,
                 text="Помощь",
@@ -284,6 +301,7 @@ class Screen:
             )
             helper_btn.pack(side=RIGHT, padx=6, pady=0, anchor=SW)
 
+            login_btn.pack(side=RIGHT, padx=6, pady=6)
             graphics_btn.pack(side=LEFT, padx=6, pady=6)
             change_btn.pack(side=LEFT, padx=6, pady=6)
             download_saved_settings_btn.pack(side=LEFT, padx=6, pady=0, anchor=NW)
@@ -294,8 +312,10 @@ class Screen:
                 text="Помощь",
                 command=lambda: HelperWindow(self.main_root)
             )
+            login_btn.pack(side=RIGHT, padx=6, pady=6)
             helper_btn.pack(side=LEFT, padx=6, pady=6, anchor=SW)
-            RustONParameter_btn.pack(expand=True, padx=6, pady=0, anchor=N)
+            rust_on_parameter_btn.pack(expand=True, padx=6, pady=0, anchor=N)
+
 
         self.main_root.mainloop()
 
@@ -306,11 +326,9 @@ class Screen:
         GraphicsWindow(self.main_root)
 
     def change_config(self):
-        self.main_root.destroy()
-        with open('system.json', 'r') as file:
-            data = json.load(file)
-        print(find_setting("system.json", "settings_flag"), 'isdfhgpiashpgoihwreo')
+        flag_change_config = 1
         modify_all_key_values("system.json", "settings_flag", 0)
+        self.main_root.destroy()
         config_path = AppConfig.get_config_path()
         app = Screen(main_SAZE, main_HEIDTH, config_path)
         app.main_screen()
@@ -371,7 +389,8 @@ class BaseSetting:
                 self.config_path = find_setting(data, "keys.cfg")
                 print(self.config_path)
         except FileNotFoundError:
-            showerror(title="Критическая ошибка", message="не найден файл keys.cfg смените конфигурацию или востановите файлы через Steam")
+            showerror(title="Критическая ошибка",
+                      message="не найден файл keys.cfg смените конфигурацию или востановите файлы через Steam")
             exit()
 
         self.label = ttk.Label(root, text="Введите клавишу и нажмите Применить:")
@@ -606,19 +625,19 @@ class Sensitivity:
                         replace_str = f"input.bind [leftcontrol + mouse0] +input.sensitivity {key1}; input.sensitivity {key2}"
                         create_and_write_file(replace_str)
                     elif key1 != "":
-                            replace_str = f"input.ads_sensitivity '{key1}'"
-                            replace_in_large_file(self.config_path, search_str, replace_str)
-                            print(key1, '|', key2, type(key1), '|', type(key2), "|", replace_str, '|', '------' * 2)
-                            create_and_write_file(replace_str)
+                        replace_str = f"input.ads_sensitivity '{key1}'"
+                        replace_in_large_file(self.config_path, search_str, replace_str)
+                        print(key1, '|', key2, type(key1), '|', type(key2), "|", replace_str, '|', '------' * 2)
+                        create_and_write_file(replace_str)
 
                 if ((key2 != "") and (key1 != '')) and int:
                     replace_str = f"bind [leftcontrol + mouse0] +input.sensitivity {key1}; input.sensitivity {key2}"
                     file.write(f'{replace_str}\n')
                 elif key1 != "":
-                        replace_str = f"input.ads_sensitivity '{key1}'"
-                        replace_in_large_file(self.config_path, search_str, replace_str)
-                        print(key1, '|', key2, type(key1), '|', type(key2), "|", replace_str, '|', '------' * 2)
-                        file.write(f'{replace_str}\n')
+                    replace_str = f"input.ads_sensitivity '{key1}'"
+                    replace_in_large_file(self.config_path, search_str, replace_str)
+                    print(key1, '|', key2, type(key1), '|', type(key2), "|", replace_str, '|', '------' * 2)
+                    file.write(f'{replace_str}\n')
         except ValueError:
             print('f')
 
@@ -630,6 +649,7 @@ class SaveSettings:
     @staticmethod
     def save_settings():
         Save.save_settings_user()
+        Save.save_keys_settings()
         messagebox.showinfo(title="Уведомление", message='Сохранение прошло успешно')
 
 
@@ -637,7 +657,8 @@ class DownloadSavedSettings:
     def __init__(self, parent):
         self.download_settings()
 
-    def download_settings(self):
+    @staticmethod
+    def download_settings():
         uses_save_file()
         messagebox.showinfo(title='Уведомление', message='ваши настройки успешно загружены')
 
@@ -668,13 +689,10 @@ class Farmer:
 
         general_text = Text(general_frame, wrap=WORD, padx=10, pady=10)
 
-        # for path in [img_1, img_2, img_3, img_4, img_5, img_6, img_7, img_8, img_9]:
-            # img = ImageTk.PhotoImage(Image.open(path))
-            # general_text.image_create(tk.END, image=img)
-            # images.append(img)
+
 
         general_text.insert(tk.END,
-                        f'''Основы фермерства.
+                            f'''Основы фермерства.
 На данный момент в игре можно выращивать:
     1.картофель
     2.конопля
@@ -786,17 +804,28 @@ X - пустой ген.
         close_btn.pack(pady=10)
 
 
+def finish():
+    with open(file_name, 'r', encoding='utf-8') as file:
+        data = file.read()
+        buffer(data)
+        messagebox.showinfo(title="Уведомление", message=f'Что бы приминить все выбраные бинды,\nнажмите f1 и ctr+V')
+    os.remove(file_name)
+
+
 class FinishOnRustBinds:
 
     def __init__(self):
-        self.finish()
+        finish()
 
-    def finish(self):
-        with open(file_name, 'r', encoding='utf-8') as file:
-            data = file.read()
-            buffer(data)
-            messagebox.showinfo(title="Уведомление", message=f'Что бы приминить все выбраные бинды,\nнажмите f1 и ctr+V')
-        os.remove(file_name)
+
+def login():
+    open_new('https://rusthealper.pythonanywhere.com/register')
+    time.sleep(60)
+    with open("user_id.txt", 'r') as file:
+        user_id = file.readline()
+        modify_all_key_values(SYSTEM_JSON, "user_id", user_id)
+    print('lksjdbnfp;oa')
+
 
 if __name__ == "__main__":
     with open("system.json", 'r', encoding='utf-8') as x:
@@ -806,8 +835,8 @@ if __name__ == "__main__":
         SETTINGS_FLAG = bool(int(find_setting(data, "settings_flag")))
     config_path = AppConfig.get_config_path()
     result = askyesno(title="", message="Включён ли Rust?")
-    if result:RustONParameter = True
+    if result:
+        RustONParameter = True
     app = Screen(main_SAZE, main_HEIDTH, config_path)
     app.main_screen()
     exit()
-    
